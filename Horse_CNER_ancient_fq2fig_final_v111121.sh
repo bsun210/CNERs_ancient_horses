@@ -1,9 +1,7 @@
 #!/usr/local/bin
 #Balaji Sundararaman
 #11-11-2021
-#Usage
-#bash Horse_CNER_ancient_fq2fig_final_v111121.sh <directory_to_ouput> <sample_text_file>
-#Mapping and metrics calculations are adopted from Alisa Vernisia's and Jonas's ancient pipelines
+#Usage bash Horse_CNER_ancient_fq2fig_final_v111121.sh <directory_to_ouput> <sample_text_file>
 
 cd $1
 mkdir BWA_analyses
@@ -53,7 +51,7 @@ while read ln; do
     if [ ! -f ./SeqPrep_output/${SAMPLE}_SeqPrep_output.txt ]
     then
 
-### SeqPrep -- removing adapters and merging reads. Overlap (-o) is set to 20, minimum length (-l) is set to 25, minimum quality (-q) is set to 15.
+### SeqPrep -- removing adapters and merging reads. Overlap (-o) is set to 15, minimum length (-l) is set to 27.
 	${SEQPREP_LOCATION}/SeqPrep2 -f $RAW_R1 -r $RAW_R2 -1 ./SeqPrep_output/${SAMPLE}_R1_unmerged.fastq.gz -2 ./SeqPrep_output/${SAMPLE}_R2_unmerged.fastq.gz -q 15 -L ${SEQPREP_MIN_LENGTH} -A AGATCGGAAGAGCACACGTC -B AGATCGGAAGAGCGTCGTGT -s ./SeqPrep_output/${SAMPLE}_merged.fastq.gz -o ${SEQPREP_OVERLAP} -d 1 -C ATCTCGTATGCCGTCTTCTGCTTG -D GATCTCGGTGGTCGCCGTATCATT >& ./SeqPrep_output/${SAMPLE}_SeqPrep_output.txt
 	gunzip ./SeqPrep_output/${SAMPLE}*merged.fastq.gz
 
@@ -88,11 +86,7 @@ while read ln; do
 	/usr/bin/samtools merge ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.bam ./BWA_analyses/${SAMPLE}_merged.complexity_filtered_EquCab2.sorted.bam ./BWA_analyses/${SAMPLE}_unmerged.complexity_filtered_pe_EquCab2.sorted.bam
 
 	/usr/bin/samtools sort ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.bam ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted
-	#/usr/bin/samtools index ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam
-
-	#/usr/bin/samtools rmdup -S ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam
-	#/usr/bin/samtools index ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam
-
+	
 	java -jar ~/bin/picard.jar MarkDuplicates -I ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam -O ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam -METRICS_FILE ./BWA_analyses/${SAMPLE}_markdup_metrics.txt -REMOVE_DUPLICATES true -MAX_FILE_HANDLES_FOR_READ_ENDS_MAP 800 -VALIDATION_STRINGENCY LENIENT
 
 	/usr/bin/samtools index ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam
@@ -102,15 +96,13 @@ while read ln; do
 
 	/usr/bin/samtools view -F4 -c ./BWA_analyses/${SAMPLE}_merged.complexity_filtered_EquCab2.sorted.bam | awk '{print $1 " + Merged_mapped_reads"}' >> ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
 
-	#/usr/bin/samtools view -F4 -c ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam | awk '{print $1 " + 0 RMDUP_mapped_reads"}' >> ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
-
 	grep '^LIB' -A1 ./BWA_analyses/${SAMPLE}_markdup_metrics.txt | grep -v '^LIB' | awk '{print $10 " + Picard_MarkDup_PCT_Duplication"}' >> ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
 
 ### mapDamage to assess damage rates from all aligned and duplicate-removed data and to draw fragment length distributions of aligned data
 	/soe/pheintzman/bin/mapDamage -i ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam -r ${REFERENCE_SEQUENCE} --merge-reference-sequences -l 150 -d ./MapDamage_output/mapDamage_${SAMPLE} -y 0.5 -m 25 -t ${SAMPLE}
     fi
 
- ### MIA --- Option 1 -- creating a consensus using iterative mapping - use this with shotgun data
+ ### MIA -- creating a consensus using iterative mapping - use if mtDNA metrics needed from short-gun data
     if [ ! -f ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_stats.txt ]
     then
 	/soe/pheintzman/bin/mia-1.0/src/mia -r ${MIA_REFERENCE_SEQUENCE} -f ./SeqPrep_output/${SAMPLE}_merged.complexity_filtered.fastq -c -C -U -s ${ANCIENT_DNA_MATRIX} -i -F -k 14 -m ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln
@@ -148,9 +140,8 @@ while read ln; do
 	java -jar ~/bin/picard.jar CollectHsMetrics -I ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam -O ${SAMPLE}.temp2.tsv -R ${REFERENCE_SEQUENCE} -BAIT_INTERVALS /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_23999baits_23771SNPs_baits_interval_list -TARGET_INTERVALS /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_23999baits_23771SNPs_targets_interval_list -VALIDATION_STRINGENCY SILENT
 
 	grep -A 1 '^BAIT' ${SAMPLE}.temp2.tsv | sed 's:\t:,:g' | sed "s:$:$SAMPLE:g" > ${SAMPLE}.picard_temp.csv #>> Picard_metrics.csv
-	#wait
-	#rm ${SAMPLE}.temp*.tsv
-
+	
+	###Plot coverage metrics using custom py scripts
 	python3 ~/scripts/gc_cover_plot_final.py ${SAMPLE}.ecab2_perCNER.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
 	python3 ~/scripts/cner_len_SNPdepth_final.py ${SAMPLE}.50bpSNPs_depth.tsv,${SAMPLE}.80bpSNPs_depth.tsv,${SAMPLE}.100bpSNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
 	python3 ~/scripts/plot_SNP_100updown_coverage_final.py ${SAMPLE}.all23771SNPs_100updown.tsv ${SAMPLE}
@@ -172,5 +163,5 @@ mkdir ./CNER_CaptureAnalyses
 mv *.*sv ./CNER_CaptureAnalyses
 mv *.png ./CNER_CaptureAnalyses
 
-#sed -i '3~2d' ./CNER_CaptureAnalyses/Picard_metrics.csv
+#For final mapping metrics of all samples consolidation:
 Rscript ~/scripts/shortReads_QCmetrics_v2.R ./SeqPrep_output/ ./BWA_analyses/ ./MapDamage_output/ ./MIA_analyses/
