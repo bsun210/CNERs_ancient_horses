@@ -5,41 +5,23 @@
 
 cd $1
 mkdir BWA_analyses
-mkdir MIA_analyses
 mkdir SeqPrep_output
 mkdir MapDamage_output
 
-#SEQPREP envelopes
+#SEQPREP2 envelopes
 SEQPREP_MIN_LENGTH=27        # Removes unmappably short reads.
 SEQPREP_OVERLAP=15           # Allows for confident merging of reads. Can be reduced to 10 if needed.
-SEQPREP_LOCATION=/soe/pheintzman/bin/SeqPrep2-master      # To find SeqPrep, if using edser2
+SEQPREP_LOCATION=/path/to/SeqPrep2-master    # Refer: https://github.com/jeizenga/SeqPrep2
 
 # BWA and SAMtools envelopes
-REFERENCE_SEQUENCE=/projects/redser3-notbackedup/projects/alisa_beringia/ecab2_reference/whole_genome_horse.fa # Remember to include the full path
-INDEX_ALGORITHM=bwtsw           # If reference is <2Gb use 'is', if >2Gb use 'bwtsw'
-SEED_DISABLE=1024            # Following ancient DNA data processing protocols
-BWA_THREADS=15                # To speed up analysis
-BAM_MIN_QUALITY=20           # Provides a fairly low cutoff
-
-# MIA envelopes
-MIA_REFERENCE_SEQUENCE=/projects/redser3-notbackedup/projects/alisa_beringia/ecab2_reference/Equus_caballus_NC_001640.fasta # Remember to include the full path
-MIA_REFERENCE_NAME=EqCab_mt  # To allow naming of files, if multiple references are to be used
-ANCIENT_DNA_MATRIX=/projects/redser3-notbackedup/projects/pheintzman/Scripts/ancient.submat.txt
-MIA_COVERAGE_FILTER=/projects/redser3-notbackedup/projects/pheintzman/Scripts/mia_consensus_coverage_filter.pl
-FASTX_TOOLKIT=/soe/pheintzman/bin/fastx_toolkit-0.0.13.2/src
-MIA_COVERAGE_FILTER_ANDRE=/projects/redser3-notbackedup/projects/common_jobs/coverage_filter_3.pl
+REFERENCE_SEQUENCE=/path/to/ecab2_reference/whole_genome_horse.fa 		# Remember to include the full path
 
 # Prinseq envelopes
-PRINSEQ_LITE=/projects/redser3-notbackedup/projects/pheintzman/Scripts/prinseq-lite.pl
-PRINSEQ_GRAPHS=/projects/redser3-notbackedup/projects/pheintzman/Scripts/prinseq-graphs.pl
-PRINSEQ_STATS=./PRINSEQ_stats
+PRINSEQ_LITE=/path/to/prinseq-lite.pl 	# Refer: https://github.com/uwb-linux/prinseq
 COMPLEXITY_METHOD=dust			# dust is the standard used by BLAST. The entropy method is an alternative, but is not widely used.
 COMPLEXITY_THRESHOLD=7			# Pretty low, but follows the PRINSEQ_LITE manual. Recommends 70 if using entropy.
-COMBINE_PAIRED_END_READS=/projects/redser3-notbackedup/projects/pheintzman/Scripts/combinePairedEndReads.pl
-SPLIT_PAIRED_END_READS=/projects/redser3-notbackedup/projects/pheintzman/Scripts/splitPairedEndReads.pl
-
-# Other envelopes
-GET_INSERT_SIZE=/projects/redser3-notbackedup/projects/pheintzman/Scripts/getinsertsize.py
+COMBINE_PAIRED_END_READS=/path/to/combinePairedEndReads.pl	# Refer: https://github.com/uwb-linux/prinseq
+SPLIT_PAIRED_END_READS=/path/to/splitPairedEndReads.pl		# Refer: https://github.com/uwb-linux/prinseq
 
 fn=$2
 while read ln; do
@@ -56,9 +38,10 @@ while read ln; do
 	gunzip ./SeqPrep_output/${SAMPLE}*merged.fastq.gz
 
 ### Filtering reads for low complexity sequences
-# Remove low complexity reads from merged files
+	# Remove low complexity reads from merged files
 	perl ${PRINSEQ_LITE} -fastq ./SeqPrep_output/${SAMPLE}_merged.fastq -out_good ./SeqPrep_output/${SAMPLE}_merged.complexity_filtered -out_bad null -lc_method ${COMPLEXITY_METHOD} -lc_threshold ${COMPLEXITY_THRESHOLD} -line_width 0
-# Remove low complexity reads from unmerged files
+
+	# Remove low complexity reads from unmerged files
 	perl ${COMBINE_PAIRED_END_READS} ./SeqPrep_output/${SAMPLE}_R1_unmerged.fastq ./SeqPrep_output/${SAMPLE}_R2_unmerged.fastq ./SeqPrep_output/${SAMPLE}_unmerged_combined.fastq
 	wait
 	perl ${PRINSEQ_LITE} -fastq ./SeqPrep_output/${SAMPLE}_unmerged_combined.fastq -out_good ./SeqPrep_output/${SAMPLE}_unmerged_combined.complexity_filtered -out_bad null -lc_method ${COMPLEXITY_METHOD} -lc_threshold ${COMPLEXITY_THRESHOLD} -line_width 0
@@ -102,35 +85,9 @@ while read ln; do
 	/soe/pheintzman/bin/mapDamage -i ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam -r ${REFERENCE_SEQUENCE} --merge-reference-sequences -l 150 -d ./MapDamage_output/mapDamage_${SAMPLE} -y 0.5 -m 25 -t ${SAMPLE}
     fi
 
- ### MIA -- creating a consensus using iterative mapping - use if mtDNA metrics needed from short-gun data
-    if [ ! -f ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_stats.txt ]
-    then
-	/soe/pheintzman/bin/mia-1.0/src/mia -r ${MIA_REFERENCE_SEQUENCE} -f ./SeqPrep_output/${SAMPLE}_merged.complexity_filtered.fastq -c -C -U -s ${ANCIENT_DNA_MATRIX} -i -F -k 14 -m ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln
-	wait
-	gzip ./SeqPrep_output/${SAMPLE}_merged.complexity_filtered.fastq
-
-	/soe/pheintzman/bin/mia-1.0/src/ma -M ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.* -f 3 > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_stats.txt
-	wait
-	/soe/pheintzman/bin/mia-1.0/src/ma -M ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.* -f 2 > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_coverage_per_site.txt
-	wait
-	/soe/pheintzman/bin/mia-1.0/src/ma -M ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.* -f 5 > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_consensus.fasta
-	wait
-	/soe/pheintzman/bin/mia-1.0/src/ma -M ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.* -f 41 > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.inputfornext.txt
-	wait
-	perl ${MIA_COVERAGE_FILTER_ANDRE} -c 3 -p 0.67 -I ${SAMPLE}_3x_0.67 <./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.inputfornext.txt > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_consensus.3x_0.67_filtered.fasta
-	wait
-	perl ${MIA_COVERAGE_FILTER_ANDRE} -c 10 -p 0.9 -I ${SAMPLE}_10x_0.9 <./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.inputfornext.txt > ./MIA_analyses/${SAMPLE}_merged.complexity_filtered.${MIA_REFERENCE_NAME}.maln.F.mia_consensus.10x_0.9_filtered.fasta
-    fi
-
 ###CNER capture metrics using Picard tool
     if [ ! -f ${SAMPLE}.picard_temp.csv ]
     then
-	samtools depth -Q 20 -b /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_50bp_extraSNPs.bed ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam | awk '{print$1"_"$2"\t"$3}' > ${SAMPLE}.50bpSNPs_depth.tsv
-
-	samtools depth -Q 20 -b /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_100bp_extraSNPs.bed ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam | awk '{print$1"_"$2"\t"$3}' > ${SAMPLE}.100bpSNPs_depth.tsv
-
-	samtools depth -Q 20 -b /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_neut_mendel_22618SNPs_targets.bed ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam | awk '{print$1"_"$2"\t"$3}' > ${SAMPLE}.80bpSNPs_depth.tsv
-
 	bedtools multicov -q 20 -bams ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam -bed /projects/redser3-notbackedup/projects/bsundara/probes/ecab2/ecab2_23999baits_23771SNPs_targets.bed > ${SAMPLE}.all23771SNPs_depth.tsv
 
 	bedtools coverage -a /projects/redser2/projects/bsundara/probes/ecab2/ecab2_all23771SNPs_100updown.bed -b ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam -d > ${SAMPLE}.all23771SNPs_100updown.tsv
@@ -142,10 +99,10 @@ while read ln; do
 	grep -A 1 '^BAIT' ${SAMPLE}.temp2.tsv | sed 's:\t:,:g' | sed "s:$:$SAMPLE:g" > ${SAMPLE}.picard_temp.csv #>> Picard_metrics.csv
 	
 	###Plot coverage metrics using custom py scripts
-	python3 ~/scripts/gc_cover_plot_final.py ${SAMPLE}.ecab2_perCNER.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
-	python3 ~/scripts/cner_len_SNPdepth_final.py ${SAMPLE}.50bpSNPs_depth.tsv,${SAMPLE}.80bpSNPs_depth.tsv,${SAMPLE}.100bpSNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
-	python3 ~/scripts/plot_SNP_100updown_coverage_final.py ${SAMPLE}.all23771SNPs_100updown.tsv ${SAMPLE}
-	python3 ~/scripts/targetSNP_covDepth_PCTplot_final.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/gc_cover_plot_final.py ${SAMPLE}.ecab2_perCNER.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/cner_len_SNPdepth_final.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/plot_SNP_100updown_coverage_final.py ${SAMPLE}.all23771SNPs_100updown.tsv ${SAMPLE}
+	python3 /path/to/targetSNP_covDepth_PCTplot_final.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
     fi
 
 done < $fn
@@ -164,4 +121,4 @@ mv *.*sv ./CNER_CaptureAnalyses
 mv *.png ./CNER_CaptureAnalyses
 
 #For final mapping metrics of all samples consolidation:
-Rscript ~/scripts/shortReads_QCmetrics_v2.R ./SeqPrep_output/ ./BWA_analyses/ ./MapDamage_output/ ./MIA_analyses/
+Rscript /path/to/shortReads_QCmetrics_v2.R ./SeqPrep_output/ ./BWA_analyses/ ./MapDamage_output/
