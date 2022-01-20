@@ -33,11 +33,11 @@ while read ln; do
     if [ ! -f ./SeqPrep_output/${SAMPLE}_SeqPrep_output.txt ]
     then
 
-### SeqPrep -- removing adapters and merging reads. Overlap (-o) is set to 15, minimum length (-l) is set to 27.
+	### SeqPrep -- removing adapters and merging reads. Overlap (-o) is set to 15, minimum length (-l) is set to 27.
 	${SEQPREP_LOCATION}/SeqPrep2 -f $RAW_R1 -r $RAW_R2 -1 ./SeqPrep_output/${SAMPLE}_R1_unmerged.fastq.gz -2 ./SeqPrep_output/${SAMPLE}_R2_unmerged.fastq.gz -q 15 -L ${SEQPREP_MIN_LENGTH} -A AGATCGGAAGAGCACACGTC -B AGATCGGAAGAGCGTCGTGT -s ./SeqPrep_output/${SAMPLE}_merged.fastq.gz -o ${SEQPREP_OVERLAP} -d 1 -C ATCTCGTATGCCGTCTTCTGCTTG -D GATCTCGGTGGTCGCCGTATCATT >& ./SeqPrep_output/${SAMPLE}_SeqPrep_output.txt
 	gunzip ./SeqPrep_output/${SAMPLE}*merged.fastq.gz
 
-### Filtering reads for low complexity sequences
+	### Filtering reads for low complexity sequences
 	# Remove low complexity reads from merged files
 	perl ${PRINSEQ_LITE} -fastq ./SeqPrep_output/${SAMPLE}_merged.fastq -out_good ./SeqPrep_output/${SAMPLE}_merged.complexity_filtered -out_bad null -lc_method ${COMPLEXITY_METHOD} -lc_threshold ${COMPLEXITY_THRESHOLD} -line_width 0
 
@@ -74,14 +74,14 @@ while read ln; do
 
 	/usr/bin/samtools index ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.rmdup.bam
 
-# Generate statistics like number mapped, duplicates, and number aligned to each chromosome
+	# Generate statistics like number mapped, duplicates, and number aligned to each chromosome
 	/usr/bin/samtools flagstat ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam > ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
 
 	/usr/bin/samtools view -F4 -c ./BWA_analyses/${SAMPLE}_merged.complexity_filtered_EquCab2.sorted.bam | awk '{print $1 " + Merged_mapped_reads"}' >> ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
 
 	grep '^LIB' -A1 ./BWA_analyses/${SAMPLE}_markdup_metrics.txt | grep -v '^LIB' | awk '{print $10 " + Picard_MarkDup_PCT_Duplication"}' >> ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.flagstats.txt
 
-### mapDamage to assess damage rates from all aligned and duplicate-removed data and to draw fragment length distributions of aligned data
+	### mapDamage to assess damage rates from all aligned and duplicate-removed data and to draw fragment length distributions of aligned data
 	/soe/pheintzman/bin/mapDamage -i ./BWA_analyses/${SAMPLE}_all_reads.complexity_filtered_EquCab2.sorted.bam -r ${REFERENCE_SEQUENCE} --merge-reference-sequences -l 150 -d ./MapDamage_output/mapDamage_${SAMPLE} -y 0.5 -m 25 -t ${SAMPLE}
     fi
 
@@ -99,10 +99,10 @@ while read ln; do
 	grep -A 1 '^BAIT' ${SAMPLE}.temp2.tsv | sed 's:\t:,:g' | sed "s:$:$SAMPLE:g" > ${SAMPLE}.picard_temp.csv #>> Picard_metrics.csv
 	
 	###Plot coverage metrics using custom py scripts
-	python3 /path/to/gc_cover_plot_final.py ${SAMPLE}.ecab2_perCNER.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
-	python3 /path/to/cner_len_SNPdepth_final.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
-	python3 /path/to/plot_SNP_100updown_coverage_final.py ${SAMPLE}.all23771SNPs_100updown.tsv ${SAMPLE}
-	python3 /path/to/targetSNP_covDepth_PCTplot_final.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/gc_cover_plot.py ${SAMPLE}.ecab2_perCNER.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/cner_len_SNPdepth.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
+	python3 /path/to/plot_SNP_100updown_coverage.py ${SAMPLE}.all23771SNPs_100updown.tsv ${SAMPLE}
+	python3 /path/to/targetSNP_covDepth_PCTplot.py ${SAMPLE}.all23771SNPs_depth.tsv ${SAMPLE} >> ${SAMPLE}.pipe_log.txt
     fi
 
 done < $fn
@@ -121,4 +121,4 @@ mv *.*sv ./CNER_CaptureAnalyses
 mv *.png ./CNER_CaptureAnalyses
 
 #For final mapping metrics of all samples consolidation:
-Rscript /path/to/shortReads_QCmetrics_v2.R ./SeqPrep_output/ ./BWA_analyses/ ./MapDamage_output/
+Rscript /path/to/shortReads_QCmetrics.R ./SeqPrep_output/ ./BWA_analyses/ ./MapDamage_output/
