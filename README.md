@@ -1,14 +1,14 @@
 # A method to generate large mass of capture baits for targeted sequencing
 
-This repository contains scripts used to analyze data and to make figures reported in Sundararaman et al, Nucleic Acid Research (2022). 
+This repository contains scripts used to analyze data and to make figures reported in Sundararaman et al, Nucleic Acid Research (2023). 
 
-This paper reports Circular Nuclecid acid Enrichment Reagent synthesis (CNERs) method for making DNA probes for targeted sequencing by hybridization capture. 
-Using CNERs method, a Equine SNP panel was generated to sequence and genotype ancient caballine horses.  
-Equine SNP panel contains 23,771 SNPs identified from WGS of ancient horses reported by Vershinina A et al (2021) and other previous studies. 
+This article reports Circular Nuclecid acid Enrichment Reagent synthesis (CNERs) method for making DNA probes for targeted sequencing by hybridization capture. 
+Using CNERs method, a horse SNP panel was generated to sequence and genotype ancient horses.  
+Horse SNP panel contains 23,771 SNPs identified from WGS of ancient horses reported by Vershinina A et al (2021) and other previous studies. 
 Using CNERs, we genotyped and recapitulated the ancient horse population structure, using a fraction of resources than previous studies. 
 
 ## Data analyses
-* fq2fig_pipeline.sh:
+* horse_fq2counts.sh:
   
   This bash scripts analyzes paired-end sequencing data from mutiple samples and generates both individuall and overall sample summary. 
   Takes raw fastq files, trims adapters and merges overlapping paired-end reads using SeqPrep2 (https://github.com/jeizenga/SeqPrep2). 
@@ -16,8 +16,6 @@ Using CNERs, we genotyped and recapitulated the ancient horse population structu
   Maps merged reads as SE and unmereged read-pairs as PE mode using bwa aln (http://bio-bwa.sourceforge.net/bwa.shtml).
   Bam files merged, sorted and indexed using samtools (http://www.htslib.org/doc/samtools.html).
   Duplicates marked and removed using Picard MarkDuplicates (https://broadinstitute.github.io/picard/).
-  Ancient DNA damage patterns and insert size distributions are analyzed using mapDamage (https://github.com/ginolhac/mapDamage).
-  Capture metrics determined using Picard CollectHsMetrics (https://broadinstitute.github.io/picard/).
   Individual SNP coverage depth and coverage around the SNP region are collected using bedtools (https://bedtools.readthedocs.io/en/latest/index.html).
   Coverage across GC bins, Coverage with various CNERs length, coverage around SNP region and target SNP coverage are plotted using below custom scripts. 
   
@@ -43,11 +41,4 @@ Using CNERs, we genotyped and recapitulated the ancient horse population structu
   Takes coverage depth for all targeted 23,771 SNPs in the panel generated using bedtools multicov,
   Plots percent target SNPs at each coverage and plots cumulative coverage of all targeted SNPs. Cumulative coverage plot can be used to visualize percent target     SNPs with less or more than a given coverage.  
  
-* shortReads_QCmetrics.R:
- 
-  R scripts that crawls all log text files from individual steps and parse them to summarize final mapping metrics for all samples in the batch. 
- 
- 
- 
-  
 
