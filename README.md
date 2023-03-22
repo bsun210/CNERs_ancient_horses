@@ -1,6 +1,6 @@
 # A method to generate large mass of capture baits for targeted sequencing
 
-This repository contains scripts used to analyze data and to make figures reported in Sundararaman et al, Nucleic Acid Research (2023). 
+This repository contains scripts used to analyze data and to make figures reported in Sundararaman et al, Nucleic Acid Research (2023a). 
 
 This article reports Circular Nuclecid acid Enrichment Reagent synthesis (CNERs) method for making DNA probes for targeted sequencing by hybridization capture. 
 Using CNERs method, a horse SNP panel was generated to sequence and genotype ancient horses.  
